@@ -1,61 +1,29 @@
-board([
-    [red, blue, yellow],
-    [red, blue, yellow],
-    [red, blue, yellow]
+% Define valid moves for a 2D board 
+move([X,Y], [X1,Y1]) :- X1 is X + 1, Y1 is Y, valid(X1,Y1).
+move([X,Y], [X1,Y1]) :- X1 is X - 1, Y1 is Y, valid(X1,Y1).
+move([X,Y], [X1,Y1]) :- X1 is X, Y1 is Y + 1, valid(X1,Y1).
+move([X,Y], [X1,Y1]) :- X1 is X, Y1 is Y - 1, valid(X1,Y1).
+
+valid(X, Y) :- between(0, 3, X), between(0, 3, Y).
+
+% Define the initial state and color of the cells
+initialState([
+    [0,0,yellow], [0,1,yellow], [0,2,yellow], [0,3,red],
+    [1,0,blue],   [1,1,yellow], [1,2,blue],   [1,3,yellow],
+    [2,0,blue],   [2,1,blue],   [2,2,blue],   [2,3,yellow],
+    [3,0,blue],   [3,1,blue],   [3,2,blue],   [3,3,yellow]
 ]).
 
-% Predicate to get the color of a cell at position (X, Y) on the board
-cell_color(X, Y, Board, Color) :-
-    nth0(X, Board, Row),     % Get the row at position X
-    nth0(Y, Row, Color).     % Get the element at position Y in the row
+%BFS Algorithm
 
-same_color(X1, Y1, X2, Y2, Board) :-
-    cell_color(X1, Y1, Board, Color1),
-    cell_color(X2, Y2, Board, Color2),
-    Color1 = Color2.
+% Predicate to find a cycle path of the same color
+search(CyclePath) :-
+    initialState(InitialState),
+    member(StartNode, InitialState),
+    %bfs([StartNode], CyclePath, [StartNode]).
 
-check_range(X, Y, Board) :-
-    length(Board, RowsCount),
-    RowsCount > 0,
-    nth0(0, Board, Row),
-    length(Row, ColsCount),
-    X >= 0, X < RowsCount,
-    Y >= 0, Y < ColsCount.
-    
-up(X, Y, NewX, NewY, Board) :-
-    NewX is X - 1,
-    NewY is Y,
-    check_range(NewX, NewY, Board),
-    same_color(X, Y, NewX, NewY, Board).
 
-down(X, Y, NewX, NewY, Board) :-
-    NewX is X + 1,
-    NewY is Y,
-    check_range(NewX, NewY, Board),
-    same_color(X, Y, NewX, NewY, Board).
 
-left(X, Y, NewX, NewY, Board) :-
-    NewY is Y - 1,
-    NewX is X,
-    check_range(NewX, NewY, Board),
-    same_color(X, Y, NewX, NewY, Board).
 
-right(X, Y, NewX, NewY, Board) :-
-    NewY is Y + 1,
-    NewX is X,
-    check_range(NewX, NewY, Board),
-    same_color(X, Y, NewX, NewY, Board).
-    
 
-move(X, Y, NewX, NewY, Board) :-
-    up(X, Y, NewX, NewY, Board);
-    down(X, Y, NewX, NewY, Board);
-    left(X, Y, NewX, NewY, Board);
-    right(X, Y, NewX, NewY, Board).
 
-% Usage: right(0, 0, NewX, NewY, [[red, red, blue], [yellow, red, yellow]).
-% Expected: NewX = 1, NewY = 0.
-% Usage: up(0, 0, NewX, NewY, [[red, red, blue], [yellow, red, yellow]).
-% Expected: false.
-% Usage: right(0, 1, NewX, NewY, [[red, red, blue], [yellow, red, yellow]).
-% Expected: false. (because the color doesn't match)
