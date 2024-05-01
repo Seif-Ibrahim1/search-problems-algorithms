@@ -1,7 +1,7 @@
 board([
-    [red, blue, yellow],
-    [red, blue, yellow],
-    [red, blue, yellow]
+    [red, blue, blue],
+    [red, red, yellow],
+    [blue, red, red]
 ]).
 
 % Predicate to get the color of a cell at position (X, Y) on the board
@@ -22,40 +22,76 @@ check_range(X, Y, Board) :-
     X >= 0, X < RowsCount,
     Y >= 0, Y < ColsCount.
     
-up(X, Y, NewX, NewY, Board) :-
+up(X, Y, NewX, NewY, Board, Visited) :-
     NewX is X - 1,
     NewY is Y,
     check_range(NewX, NewY, Board),
-    same_color(X, Y, NewX, NewY, Board).
+    same_color(X, Y, NewX, NewY, Board),
+    \+ member((NewX, NewY), Visited).
 
-down(X, Y, NewX, NewY, Board) :-
+down(X, Y, NewX, NewY, Board, Visited) :-
     NewX is X + 1,
     NewY is Y,
     check_range(NewX, NewY, Board),
-    same_color(X, Y, NewX, NewY, Board).
+    same_color(X, Y, NewX, NewY, Board),
+    \+ member((NewX, NewY), Visited).
 
-left(X, Y, NewX, NewY, Board) :-
+left(X, Y, NewX, NewY, Board, Visited) :-
     NewY is Y - 1,
     NewX is X,
     check_range(NewX, NewY, Board),
-    same_color(X, Y, NewX, NewY, Board).
+    same_color(X, Y, NewX, NewY, Board),
+    \+ member((NewX, NewY), Visited).
 
-right(X, Y, NewX, NewY, Board) :-
+right(X, Y, NewX, NewY, Board, Visited) :-
     NewY is Y + 1,
     NewX is X,
     check_range(NewX, NewY, Board),
-    same_color(X, Y, NewX, NewY, Board).
-    
+    same_color(X, Y, NewX, NewY, Board),
+    \+ member((NewX, NewY), Visited).
 
-move(X, Y, NewX, NewY, Board) :-
-    up(X, Y, NewX, NewY, Board);
-    down(X, Y, NewX, NewY, Board);
-    left(X, Y, NewX, NewY, Board);
-    right(X, Y, NewX, NewY, Board).
+search(X, Y, GoalX, GoalY) :-
+    board(Board),
+    search(X, Y, GoalX, GoalY, Board, [], Path),
+    (last(Path, (GoalX, GoalY)) -> % Check if the last point in the path is the goal point
+        write(Path) % If it is, print the path
+    ;
+        write('not found') % If it's not, print "not found"
+    ).
 
-% Usage: right(0, 0, NewX, NewY, [[red, red, blue], [yellow, red, yellow]).
-% Expected: NewX = 1, NewY = 0.
-% Usage: up(0, 0, NewX, NewY, [[red, red, blue], [yellow, red, yellow]).
-% Expected: false.
-% Usage: right(0, 1, NewX, NewY, [[red, red, blue], [yellow, red, yellow]).
-% Expected: false. (because the color doesn't match)
+search(X, Y, GoalX, GoalY, Board, Visited, Path) :-
+    check_range(X, Y, Board),
+    \+ member((X, Y), Visited),
+    (X = GoalX, Y = GoalY) ->
+        Path = [(X, Y)]; % If goal is reached, return the path
+        (
+            append(Visited, [(X, Y)], NewVisited),
+            (up(X, Y, NewX, NewY, Board, NewVisited) ->
+                search(NewX, NewY, GoalX, GoalY, Board, NewVisited, TempPath),
+                Path = [(X,Y)|TempPath]
+            ;
+                (down(X, Y, NewX, NewY, Board, NewVisited) ->
+                    search(NewX, NewY, GoalX, GoalY, Board, NewVisited, TempPath),
+                    Path = [(X,Y)|TempPath]
+                ;
+                    (left(X, Y, NewX, NewY, Board, NewVisited) ->
+                        search(NewX, NewY, GoalX, GoalY, Board, NewVisited, TempPath),
+                        Path = [(X,Y)|TempPath]
+                    ;
+                        (right(X, Y, NewX, NewY, Board, NewVisited) ->
+                            search(NewX, NewY, GoalX, GoalY, Board, NewVisited, TempPath),
+                            Path = [(X,Y)|TempPath]
+                        ;
+                            Path = []
+                        )
+                    )
+                )
+            )
+        ).
+
+% Test cases
+% search(0, 0, 2, 2). % [(0,0),(1,0),(1,1),(2,1),(2,2)]
+% search(0, 0, 1, 2). % not found
+% search(0, 0, 0, 2). % not found
+% search(0, 0, 0, 0). % [(0,0)]
+% search(0, 0, 1, 1). % [(0,0),(1,0),(1,1)]
