@@ -24,13 +24,13 @@ check_range(X, Y, Board) :-
     
 up(X, Y, NewX, NewY, Board) :-
     NewX is X - 1,
-    newY is Y,
+    NewY is Y,
     check_range(NewX, NewY, Board),
     same_color(X, Y, NewX, NewY, Board).
 
 down(X, Y, NewX, NewY, Board) :-
     NewX is X + 1,
-    newY is Y,
+    NewY is Y,
     check_range(NewX, NewY, Board),
     same_color(X, Y, NewX, NewY, Board).
 
