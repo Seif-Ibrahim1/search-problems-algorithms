@@ -1,78 +1,96 @@
-move([X,Y], [X1,Y1]) :- moveRight([X,Y], [X1,Y1]).
-move([X,Y], [X1,Y1]) :- moveLeft([X,Y], [X1,Y1]).
-move([X,Y], [X1,Y1]) :- moveUp([X,Y], [X1,Y1]).
-move([X,Y], [X1,Y1]) :- moveDown([X,Y], [X1,Y1]).
+%Define valid moves
+move([X,Y], [X1,Y1], Width, Height) :- moveRight([X,Y], [X1,Y1], Width, Height).
+move([X,Y], [X1,Y1], Width, Height) :- moveLeft([X,Y], [X1,Y1], Width, Height).
+move([X,Y], [X1,Y1], Width, Height) :- moveUp([X,Y], [X1,Y1], Width, Height).
+move([X,Y], [X1,Y1], Width, Height) :- moveDown([X,Y], [X1,Y1], Width, Height).
 
 
-moveRight([X,Y], [X1,Y1]) :- X1 is X + 1, Y1 is Y, valid(X1,Y1).
-moveLeft([X,Y], [X1,Y1]) :- X1 is X - 1, Y1 is Y, valid(X1,Y1).
-moveUp([X,Y], [X1,Y1]) :- X1 is X, Y1 is Y + 1, valid(X1,Y1).
-moveDown([X,Y], [X1,Y1]) :- X1 is X, Y1 is Y - 1, valid(X1,Y1).
+moveRight([X,Y], [X1,Y1], Width, Height) :- X1 is X + 1, Y1 is Y, valid(X1,Y1, Width, Height).
+moveLeft([X,Y], [X1,Y1], Width, Height) :- X1 is X - 1, Y1 is Y, valid(X1,Y1, Width, Height).
+moveUp([X,Y], [X1,Y1], Width, Height) :- X1 is X, Y1 is Y + 1, valid(X1,Y1, Width, Height).
+moveDown([X,Y], [X1,Y1], Width, Height) :- X1 is X, Y1 is Y - 1, valid(X1,Y1, Width, Height).
 
-valid(X, Y) :- between(0, 3, X), between(0, 3, Y).
+valid(X, Y, Width, Height) :- between(0, Width, X), between(0, Height, Y).
 
-initialState([
-    [0,0,yellow], [0,1,yellow], [0,2,yellow], [0,3,red],
-    [1,0,blue], [1,1,yellow], [1,2,blue],   [1,3,yellow],
-    [2,0,blue],   [2,1,blue],   [2,2,blue],   [2,3,yellow],
-    [3,0,blue],   [3,1,blue],   [3,2,blue],   [3,3,yellow]
-]).
+%Fill Board with coordinates
+% base case: empty board
+board_coordinates(_, _, []).
 
-% Main predicate for finding a circle with the same color
-findCirclePath() :-
-    initialState(Initial),
-    search([[Initial, null]], [], Path),   % open is initial (null is parent), close is empty
+board_coordinates(Board, Width, Coords) :-
+    board_coordinates_row(Board, Width, 0, Coords).
+
+board_coordinates_row([], _, _, []).
+board_coordinates_row([Row|Rest], Width, RowIndex, Coords) :-
+    NextRowIndex is RowIndex + 1,
+    board_coordinates_row(Rest, Width, NextRowIndex, RestCoords),
+    board_coordinates_row_helper(Row, Width, RowIndex, 0, RowCoords),
+    append(RowCoords, RestCoords, Coords).
+
+board_coordinates_row_helper([], _, _, _, []).
+board_coordinates_row_helper([Color|Rest], Width, RowIndex, ColIndex, [[RowIndex, ColIndex, Color]|RestCoords]) :-
+    NextColIndex is ColIndex + 1,
+    board_coordinates_row_helper(Rest, Width, RowIndex, NextColIndex, RestCoords),
+    ColIndex < Width.
+
+board_coordinates(Width, Height, Board, Coords) :-
+    length(Board, Height),
+    maplist(same_length(Board), Board),
+    board_coordinates(Board, Width, Coords).
+
+% Main predicate for finding a cycle
+findCyclePath(Width, Height,Board) :-
+    board_coordinates(Width,Height,Board,Initial),
+    search([[Initial, null]], [], Path, Width, Height),
     printPath(Path).
 
 % Predicates for searching
-search(Open, Closed, Path) :-
-    getState(Open, [CurrentNode,Parent], RestOpen), % Step 1
-    hasSquare(CurrentNode, Path).
-    
-search(Open, Closed, Path) :-
+search(Open, Closed, Path, Width, Height) :-
+    getState(Open, [CurrentNode,Parent], RestOpen),
+    hasSquare(CurrentNode, Path, Width,Height).
+
+search(Open, Closed, Path, Width, Height) :-
     getState(Open, CurrentNode, TmpOpen),
-    getAllValidChildren(CurrentNode, TmpOpen, Closed, Children), % Step 3
-    addChildren(Children, TmpOpen, NewOpen), % Step 4
-    append(Closed, [CurrentNode], NewClosed), % Step 5.1
-    search(NewOpen, NewClosed, Path). % Step 5.2
+    getAllValidChildren(CurrentNode, TmpOpen, Closed, Children, Width, Height),
+    addChildren(Children, TmpOpen, NewOpen),
+    append(Closed, [CurrentNode], NewClosed),
+    search(NewOpen, NewClosed, Path, Width, Height).
 
-% Implementation of step 3 to get the next states
-getAllValidChildren(Node, Open, Closed, Children) :-
-    findall(Next, getNextState(Node, Open, Closed, Next), Children).
+getAllValidChildren(Node, Open, Closed, Children, Width, Height) :-
+    findall(Next, getNextState(Node, Open, Closed, Next, Width, Height), Children).
 
-getNextState([State,Parent], Open, Closed, [Next,State]) :-
-    move(State, Next),
+getNextState([State,Parent], Open, Closed, [Next,State], Width, Height) :-
+    move(State, Next, Width, Height),
     \+ member([Next,_], Open),
     \+ member([Next,_], Closed).
 
-% Implementation of getState and addChildren determine the search algorithm.
 % BFS
-getState([[CurrentNode,Parent]|RestOpen], [CurrentNode,Parent], RestOpen). % retrieve current node and its parent
+getState([[CurrentNode,Parent]|RestOpen], [CurrentNode,Parent], RestOpen).
 addChildren(Children, Open, NewOpen) :-
     append(Open, Children, NewOpen).
 
 % Predicate to check if a circle with the same color exists
-hasSquare(State, Path) :-
+hasSquare(State, Path, Width, Height) :-
     member([X,Y,Color], State),
-    findSquare(State, [X,Y,Color], Path).
+    findSquare(State, [X,Y,Color], Path, Width, Height).
 
-findSquare(State, [X,Y,Color], Path) :-
-    moveUp([X,Y], [X1,Y1]),
+findSquare(State, [X,Y,Color], Path, Width, Height) :-
+    moveUp([X,Y], [X1,Y1], Width, Height),
     member([X1,Y1,Color], State),
-    
-    moveRight([X1,Y1], [X2,Y2]),
+
+    moveRight([X1,Y1], [X2,Y2], Width, Height),
     member([X2,Y2,Color], State),
-    
-    moveDown([X2,Y2], [X3,Y3]),
+
+    moveDown([X2,Y2], [X3,Y3], Width, Height),
     member([X3,Y3,Color], State),
-    
+
     % Ensure distinct coordinates for each corner
     [X,Y] \= [X1,Y1], [X,Y] \= [X2,Y2], [X,Y] \= [X3,Y3],
     [X1,Y1] \= [X2,Y2], [X1,Y1] \= [X3,Y3],
     [X2,Y2] \= [X3,Y3],
     Path = [[X,Y],[X1,Y1],[X2,Y2],[X3,Y3]].
 
-% print the path
+% Print the path
+% Design Output
 printPath([]) :- nl.
 printPath([[X,Y]|T]) :-
     format('~w,~w', [X,Y]),
@@ -80,7 +98,6 @@ printPath([[X,Y]|T]) :-
     ;   write(' -> '),
         printPath(T)
     ).
-
 
 
 
