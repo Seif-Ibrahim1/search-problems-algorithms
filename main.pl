@@ -29,8 +29,9 @@ board_coordinates_row([Row|Rest], Width, RowIndex, Coords) :-
 board_coordinates_row_helper([], _, _, _, []).
 board_coordinates_row_helper([Color|Rest], Width, RowIndex, ColIndex, [[RowIndex, ColIndex, Color]|RestCoords]) :-
     NextColIndex is ColIndex + 1,
-    board_coordinates_row_helper(Rest, Width, RowIndex, NextColIndex, RestCoords),
-    ColIndex < Width.
+    ColIndex < Width,
+    !,
+    board_coordinates_row_helper(Rest, Width, RowIndex, NextColIndex, RestCoords).
 
 board_coordinates(Width, Height, Board, Coords) :-
     length(Board, Height),
@@ -98,6 +99,8 @@ printPath([[X,Y]|T]) :-
     ;   write(' -> '),
         printPath(T)
     ).
+
+
 
 
 
