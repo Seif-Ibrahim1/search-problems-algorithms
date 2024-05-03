@@ -1,3 +1,5 @@
+% some test cases are in the bottom of the file for input 
+
 %Define valid moves
 move([X,Y], [X1,Y1], Width, Height) :- moveRight([X,Y], [X1,Y1], Width, Height).
 move([X,Y], [X1,Y1], Width, Height) :- moveLeft([X,Y], [X1,Y1], Width, Height).
@@ -99,18 +101,24 @@ printPath([[X,Y]|T]) :-
     ;   write(' -> '),
         printPath(T)
     ).
-board([
-    [red, blue, red, red, red],
-    [red, red, red, yellow, red],
-    [blue, yellow, red, red, red]
-]).
 
 
 
+% board([
+%     [red, blue, red, red, red],
+%     [red, red, red, yellow, red],
+%     [blue, yellow, red, red, red]
+% ]).
 
+% Predicate to get the color of a cell
+cell_color(X, Y, Board, Color) :-
+    nth0(X, Board, Row),
+    nth0(Y, Row, Color).
 
-
-
+same_color(X1, Y1, X2, Y2, Board) :-
+    cell_color(X1, Y1, Board, Color1),
+    cell_color(X2, Y2, Board, Color2),
+    Color1 = Color2.
 
 check_range(X, Y, Board) :-
     length(Board, RowsCount),
@@ -147,8 +155,7 @@ right(X, Y, NewX, NewY, Board) :-
     check_range(NewX, NewY, Board),
     same_color(X, Y, NewX, NewY, Board).
 
-search(X, Y, GoalX, GoalY) :-
-    board(Board),
+find_goal_path(X, Y, GoalX, GoalY, Board) :-
     heuristic(X, Y, GoalX, GoalY, H),
     (astar([(X, Y, H)], GoalX, GoalY, Board, [], Path)) ->
         write(Path);
@@ -194,51 +201,35 @@ heuristic(X, Y, GoalX, GoalY, H) :-
     H is abs(X - GoalX) + abs(Y - GoalY).
 
 % Test cases
-% search(0, 0, 2, 4). % [(0,0),(1,0),(1,1),(1,2),(2,2),(2,3),(2,4)]
-% search(0, 0, 1, 3). % not found
-% search(0, 0, 0, 1). % not found
-% search(0, 0, 0, 0). % [(0,0)]
-% search(0, 0, 1, 1). % [(0,0),(1,0),(1,1)]
+% find_goal_path(0,0,2,2,[         
+%               [red, blue, red, red, red],   
+%               [red, red, red, yellow, red],
+%               [blue, yellow, red, red, red]
+%             ]).    % output -> [(0,0),(1,0),(1,1),(1,2),(2,2)]
+% find_goal_path(0,0,1,3,[         
+%               [red, blue, red, red, red],   
+%               [red, red, red, yellow, red],
+%               [blue, yellow, red, red, red]
+%             ]).  % output -> not found
+% find_goal_path(0,0,0,1,[         
+%               [red, blue, red, red, red],   
+%               [red, red, red, yellow, red],
+%               [blue, yellow, red, red, red]
+%             ]).  % output -> not found
+% find_goal_path(0,0,0,0,[         
+%               [red, blue, red, red, red],   
+%               [red, red, red, yellow, red],
+%               [blue, yellow, red, red, red]
+%             ]).     % output -> [(0,0)]
+% find_goal_path(0,0,1,1,[         
+%               [red, blue, red, red, red],   
+%               [red, red, red, yellow, red],
+%               [blue, yellow, red, red, red]
+%             ]).     % output -> [(0,0),(1,0),(1,1)]
 
 
-
-% the old search code will remove it but not now
-
-% search(X, Y, GoalX, GoalY) :-
-%     board(Board),
-%     search(X, Y, GoalX, GoalY, Board, [], Path),
-%     (last(Path, (GoalX, GoalY)) -> % Check if the last point in the path is the goal point
-%         write(Path) % If it is, print the path
-%     ;
-%         write('not found') % If it's not, print "not found"
-%     ).
-
-% search(X, Y, GoalX, GoalY, Board, Visited, Path) :-
-%     check_range(X, Y, Board),
-%     \+ member((X, Y), Visited),
-%     (X = GoalX, Y = GoalY) ->
-%         Path = [(X, Y)]; % If goal is reached, return the path
-%         (
-%             append(Visited, [(X, Y)], NewVisited),
-%             (up(X, Y, NewX, NewY, Board, NewVisited) ->
-%                 search(NewX, NewY, GoalX, GoalY, Board, NewVisited, TempPath),
-%                 Path = [(X,Y)|TempPath]
-%             ;
-%                 (down(X, Y, NewX, NewY, Board, NewVisited) ->
-%                     search(NewX, NewY, GoalX, GoalY, Board, NewVisited, TempPath),
-%                     Path = [(X,Y)|TempPath]
-%                 ;
-%                     (left(X, Y, NewX, NewY, Board, NewVisited) ->
-%                         search(NewX, NewY, GoalX, GoalY, Board, NewVisited, TempPath),
-%                         Path = [(X,Y)|TempPath]
-%                     ;
-%                         (right(X, Y, NewX, NewY, Board, NewVisited) ->
-%                             search(NewX, NewY, GoalX, GoalY, Board, NewVisited, TempPath),
-%                             Path = [(X,Y)|TempPath]
-%                         ;
-%                             Path = []
-%                         )
-%                     )
-%                 )
-%             )
-%         ).
+% findCyclePath(3,3, [[b,b,r],[b,b,y],[r,y,b]]). % output -> 0,0 -> 0,1 -> 1,1 -> 1,0
+% findCyclePath(3,3, [[b,b,r],[b,y,y],[r,y,r]]). % output -> not found
+% findCyclePath(4,4, [[b,b,r,r],[b,b,y,r],[r,y,b,r],[r,r,r,r]]). % output -> 0,0 -> 0,1 -> 1,1 -> 1,0
+% findCyclePath(4,4, [[b,r,r,r],[b,b,y,r],[r,y,b,r],[r,r,b,r]]). % output -> not found
+    
