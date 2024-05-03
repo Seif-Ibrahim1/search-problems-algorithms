@@ -1,5 +1,3 @@
-% some test cases are in the bottom of the file for input 
-
 %Define valid moves
 move([X,Y], [X1,Y1], Width, Height) :- moveRight([X,Y], [X1,Y1], Width, Height).
 move([X,Y], [X1,Y1], Width, Height) :- moveLeft([X,Y], [X1,Y1], Width, Height).
@@ -16,33 +14,24 @@ valid(X, Y, Width, Height) :- between(0, Width, X), between(0, Height, Y).
 
 %Fill Board with coordinates
 % base case: empty board
-board_coordinates(_, _, []).
+generate_coordinates(Array, Width, Height, Coordinates) :-
+    generate_coordinates(Array, 0, 0, Width, Height, Coordinates).
 
-board_coordinates(Board, Width, Coords) :-
-    board_coordinates_row(Board, Width, 0, Coords).
+generate_coordinates(_, _, Height, _, Height, []).
 
-board_coordinates_row([], _, _, []).
-board_coordinates_row([Row|Rest], Width, RowIndex, Coords) :-
-    NextRowIndex is RowIndex + 1,
-    board_coordinates_row(Rest, Width, NextRowIndex, RestCoords),
-    board_coordinates_row_helper(Row, Width, RowIndex, 0, RowCoords),
-    append(RowCoords, RestCoords, Coords).
+generate_coordinates(Array, Width, Row, Width, Height, Coordinates) :-
+    NewRow is Row + 1,
+    generate_coordinates(Array, 0, NewRow, Width, Height, Coordinates).
 
-board_coordinates_row_helper([], _, _, _, []).
-board_coordinates_row_helper([Color|Rest], Width, RowIndex, ColIndex, [[RowIndex, ColIndex, Color]|RestCoords]) :-
-    NextColIndex is ColIndex + 1,
-    ColIndex < Width,
-    !,
-    board_coordinates_row_helper(Rest, Width, RowIndex, NextColIndex, RestCoords).
-
-board_coordinates(Width, Height, Board, Coords) :-
-    length(Board, Height),
-    maplist(same_length(Board), Board),
-    board_coordinates(Board, Width, Coords).
+generate_coordinates(Array, Col, Row, Width, Height, [[Row, Col, Element] | Coordinates]) :-
+    nth0(Row, Array, RowArray),
+    nth0(Col, RowArray, Element),
+    NewCol is Col + 1,
+    generate_coordinates(Array, NewCol, Row, Width, Height, Coordinates).
 
 % Main predicate for finding a cycle
 findCyclePath(Width, Height,Board) :-
-    board_coordinates(Width,Height,Board,Initial),
+    generate_coordinates(Board, Width,Height,Initial),
     search([[Initial, null]], [], Path, Width, Height),
     printPath(Path).
 
@@ -103,7 +92,6 @@ printPath([[X,Y]|T]) :-
     ).
 
 
-
 % board([
 %     [red, blue, red, red, red],
 %     [red, red, red, yellow, red],
@@ -115,19 +103,22 @@ cell_color(X, Y, Board, Color) :-
     nth0(X, Board, Row),
     nth0(Y, Row, Color).
 
+% Predicate to check if two cells have the same color
 same_color(X1, Y1, X2, Y2, Board) :-
     cell_color(X1, Y1, Board, Color1),
     cell_color(X2, Y2, Board, Color2),
     Color1 = Color2.
 
+% Predicate to check if a cell is within the board's range
 check_range(X, Y, Board) :-
     length(Board, RowsCount),
     RowsCount > 0,
     nth0(0, Board, Row),
     length(Row, ColsCount),
-    X >= 0, X < RowsCount,
+    X >= 0, X < RowsCount, % Check if X is within the range
     Y >= 0, Y < ColsCount.
-    
+
+% Define valid moves    
 up(X, Y, NewX, NewY, Board) :-
     NewX is X - 1,
     NewY is Y,
@@ -155,15 +146,40 @@ right(X, Y, NewX, NewY, Board) :-
     check_range(NewX, NewY, Board),
     same_color(X, Y, NewX, NewY, Board).
 
+% Predicate to check if a pair should be removed based on its coordinates
+should_remove(_, []). 
+
+% remove a pair if its coordinates match the first pair in the list.
+should_remove((X1, Y1), [(X2, Y2)|_]) :-
+    (X1 =:= X2, Y1 =:= Y2);
+    (X1 =:= X2, Y1 =\= Y2);
+    (X1 =\= X2, Y1 =:= Y2). 
+
+
+clean_path([], []).
+clean_path([X], [X]).
+
+% If the first pair should be removed, skip it and continue with the rest of the list.
+clean_path([X, Y|T], [X|Result]) :-
+    should_remove(X, [Y|T]), % Check if X should be removed based on Y and the rest of the list.
+    clean_path([Y|T], Result). 
+
+% If the first pair should not be removed, keep it and continue with the rest of the list.
+clean_path([X, Y|T], Result) :-
+    \+ should_remove(X, [Y|T]), % Check if X should not be removed.
+    clean_path([Y|T], Result).
+
 find_goal_path(X, Y, GoalX, GoalY, Board) :-
     heuristic(X, Y, GoalX, GoalY, H),
     (astar([(X, Y, H)], GoalX, GoalY, Board, [], Path)) ->
-        write(Path);
+        clean_path(Path, CleanPath), 
+        write(CleanPath);
         write('not found').
-    
+
 
 astar([], _, _, _, _, _) :- !, fail. % If the priority queue is empty, fail
 
+% Main predicate for A* search
 astar([(X, Y, _) | RestQueue], GoalX, GoalY, Board, Visited, Path) :-
     (X = GoalX, Y = GoalY) ->
         append(Visited, [(GoalX, GoalY)], Path); % Append the goal node to the Visited list
@@ -176,7 +192,7 @@ astar([(X, Y, _) | RestQueue], GoalX, GoalY, Board, Visited, Path) :-
             astar(Sorted, GoalX, GoalY, Board, NewVisited, Path)
         )
     ).
-
+% Expand the current node
 astar_expand(X, Y, GoalX, GoalY, Board, Visited, NextNodes) :-
     findall((NX, NY, H),
             (   (up(X, Y, NX, NY, Board), \+ member((NX, NY), Visited), heuristic(NX, NY, GoalX, GoalY, H1), H = H1)
@@ -187,9 +203,11 @@ astar_expand(X, Y, GoalX, GoalY, Board, Visited, NextNodes) :-
             NextNodes
     ).
 
+% Sort the nodes based on their heuristic values
 astar_sort(Nodes, Sorted) :-
     predsort(compare_node, Nodes, Sorted).
 
+% Compare nodes based on their heuristic values
 compare_node(Order, (X1, Y1, H1), (X2, Y2, H2)) :-
     (   H1 < H2 -> Order = <
     ;   H1 > H2 -> Order = >
@@ -197,10 +215,23 @@ compare_node(Order, (X1, Y1, H1), (X2, Y2, H2)) :-
     ;   Order = >
     ).
 
+% Calculate the heuristic value
 heuristic(X, Y, GoalX, GoalY, H) :-
     H is abs(X - GoalX) + abs(Y - GoalY).
 
-% Test cases
+% Test cases (Assignment tests)
+
+
+% find_goal_path(0,0,1,3,[[red, red, yellow, yellow],
+%                          [red, blue, red, red],
+%                        [red, red, red, yellow],
+%                         [blue, red, blue, yellow]]). % output -> [(0,0),(1,0),(2,0),(2,1),(2,2),(1,2),(1,3)]
+
+% findCyclePath(4,4, [[y,y,y,r],[b,y,b,y],[b,b,b,y],[b,b,b,y]]). % output -> 2,0 -> 2,1 -> 3,1 -> 3,0
+
+
+% other tests
+
 % find_goal_path(0,0,2,2,[         
 %               [red, blue, red, red, red],   
 %               [red, red, red, yellow, red],
@@ -232,4 +263,3 @@ heuristic(X, Y, GoalX, GoalY, H) :-
 % findCyclePath(3,3, [[b,b,r],[b,y,y],[r,y,r]]). % output -> not found
 % findCyclePath(4,4, [[b,b,r,r],[b,b,y,r],[r,y,b,r],[r,r,r,r]]). % output -> 0,0 -> 0,1 -> 1,1 -> 1,0
 % findCyclePath(4,4, [[b,r,r,r],[b,b,y,r],[r,y,b,r],[r,r,b,r]]). % output -> not found
-    
