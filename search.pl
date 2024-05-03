@@ -31,7 +31,7 @@ generate_coordinates(Array, Col, Row, Width, Height, [[Row, Col, Element] | Coor
 
 % Main predicate for finding a cycle
 findCyclePath(Width, Height,Board) :-
-    generate_coordinates(Board, Height,Width,Initial),
+    generate_coordinates(Board, Width,Height,Initial),
     search([[Initial, null]], [], Path, Width, Height),
     printPath(Path).
 
